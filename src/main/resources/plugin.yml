@@ -1,0 +1,9 @@
+name: ProjectTurn
+version: '${version}'
+main: org.beobma.projectturn.ProjectTurn
+api-version: '1.20'
+
+commands:
+  pt:
+    description: ProjectTurn 메인 명령어
+    aliases: [ projectturn ]
