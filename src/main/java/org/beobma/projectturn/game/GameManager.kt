@@ -6,7 +6,6 @@ import org.beobma.projectturn.ProjectTurn
 import org.beobma.projectturn.card.Card
 import org.beobma.projectturn.card.CardPack
 import org.beobma.projectturn.card.RarityType
-import org.beobma.projectturn.enemy.EnemyManager
 import org.beobma.projectturn.event.BattleStartEvent
 import org.beobma.projectturn.event.TurnEndEvent
 import org.beobma.projectturn.game.Field.*
@@ -63,7 +62,17 @@ class GameManager {
 
     fun playerLocationReTake() {
         val game = info.getGame() ?: return
-        val players = game.players
+        val players: MutableList<Player> = game.players.toMutableList()
+        val deadPlayer: MutableList<Player> = mutableListOf()
+        players.forEach {
+            if (game.gamePlayerStats[it]?.isDead() == true) {
+                deadPlayer.add(it)
+            }
+        }
+        deadPlayer.forEach {
+            players.remove(it)
+        }
+
         val numPlayers = players.size
         val playerOrigin: Location?
 
@@ -120,20 +129,21 @@ class GameManager {
         if (numEnemys % 2 == 1) {
             val middleIndex = numEnemys / 2
             for ((index, enemy) in enemys.withIndex()) {
-                val offset = index - middleIndex
+                val offset = (index - middleIndex) * 3 // Adjust distance to 3 blocks
                 enemy.teleport(enemyOrigin.clone().add(0.0, 0.0, offset.toDouble()))
             }
         } else {
             for ((index, enemy) in enemys.withIndex()) {
                 val offset = if (index < numEnemys / 2) {
-                    -(numEnemys / 2 - index) + 1
+                    -(numEnemys / 2 - index) * 3 + 1
                 } else {
-                    index - numEnemys / 2 + 1
+                    (index - numEnemys / 2) * 3 + 1
                 }
                 enemy.teleport(enemyOrigin.clone().add(0.0, 0.0, offset.toDouble()))
             }
         }
     }
+
 
     //맵 이동 후
     fun mapMoveEnd() {
@@ -168,7 +178,23 @@ class GameManager {
                     }
 
                     TileType.HardBattle -> {
+                        when (game.gameField) {
+                            Forest -> {
+                                EnemyManager().spawnHardEnemy(Forest)
+                            }
+
+                            Cave -> TODO()
+                            Sea -> TODO()
+                            else -> {
+                                game.stop()
+                                return
+                            }
+                        }
                         playerLocationReTake()
+                        enemyLocationReTake()
+                        startTurn()
+                        Info().setGameInfo(GameInfoType.IsHardBattle)
+                        ProjectTurn.instance.server.pluginManager.callEvent(BattleStartEvent())
                     }
 
                     TileType.Event -> {
@@ -180,6 +206,18 @@ class GameManager {
 
                     TileType.Rest -> {
                         playerLocationReTake()
+
+                        game.players.forEach {
+                            game.gamePlayerStats[it]?.heal(5, it)
+                            if (game.gamePlayerStats[it]?.isDead() == true) {
+                                game.gamePlayerStats[it]?.resurrection()
+                            }
+                        }
+                        object : BukkitRunnable() {
+                            override fun run() {
+                                mapChose()
+                            }
+                        }.runTaskLater(ProjectTurn.instance, 60L)
                     }
 
                     TileType.End -> {
@@ -390,7 +428,6 @@ class GameManager {
                 }
             }
         }.runTaskLater(ProjectTurn.instance, 60L)
-
     }
 
     //전체 턴 종료
@@ -398,6 +435,13 @@ class GameManager {
         val game = Info().getGame() ?: return
         TextManager().gameNotification("${ChatColor.GRAY}모든 대상의 턴이 종료되었습니다.")
         TextManager().gameNotification("${ChatColor.GRAY}턴 종료 처리중입니다...")
+        game.countTimer.forEach {
+            if (it.entity.isDead) {
+                it.countEnd()
+            } else {
+                it.countDown()
+            }
+        }
         object : BukkitRunnable() {
             override fun run() {
                 startTurn()
@@ -410,18 +454,34 @@ class GameManager {
         TextManager().gameNotification("${ChatColor.GRAY}모든 적이 사망하여 전투가 종료됩니다.")
 
         val game = Info().getGame() ?: return
-        Info().setGameInfo(GameInfoType.IsNot)
+        var type = GameInfoType.IsNot
+        if (Info().getGameInfo() == GameInfoType.IsBattle) {
+            type = GameInfoType.IsBattle
+        }
+        else if (Info().getGameInfo() == GameInfoType.IsHardBattle) {
+            type = GameInfoType.IsHardBattle
+        }
+
         game.players.forEach {
             it.scoreboardTags.remove("is_battle")
             game.gamePlayerStats[it]?.throwCardAll()
             game.gamePlayerStats[it]?.cemetryResetDeck()
             game.gamePlayerStats[it]?.exceptResetDeck()
         }
+        game.countTimer.forEach {
+            game.countTimer.remove(it)
+        }
 
         object : BukkitRunnable() {
             override fun run() {
                 game.players.forEach {
-                    it.nomalReward()
+                    if (type == GameInfoType.IsBattle) {
+                        it.nomalReward()
+                    }
+                    else if (type == GameInfoType.IsHardBattle) {
+                        it.eliteReward()
+                    }
+                    Info().setGameInfo(GameInfoType.IsNot)
                 }
             }
         }.runTaskLater(ProjectTurn.instance, 60L)
@@ -493,9 +553,9 @@ class GameManager {
         player!!.sendMessage("${ChatColor.BOLD}일반 보상을 준비중입니다...")
         object : BukkitRunnable() {
             override fun run() {
-                handleCardOperations(11, inventory, cardPack)
-                handleCardOperations(13, inventory, cardPack)
-                handleCardOperations(15, inventory, cardPack)
+                normalHandleCardOperations(11, inventory, cardPack)
+                normalHandleCardOperations(13, inventory, cardPack)
+                normalHandleCardOperations(15, inventory, cardPack)
                 player!!.scoreboardTags.add("rewardChose")
                 game.gamePlayerStats[player!!]?.loadDeckToInventory()
                 player!!.openInventory(inventory)
@@ -503,10 +563,40 @@ class GameManager {
         }.runTaskLater(ProjectTurn.instance, 60L)
     }
 
-    private fun handleCardOperations(inventorySlot: Int, inventory: Inventory, cardPack: CardPack) {
+    fun Player.eliteReward() {
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "정예 보상") // 3줄짜리 인벤토리
+        val game = Info().getGame() ?: return
+        for (i in 0 until inventory.size) {
+            inventory.setItem(i, Localization().nullPane)
+        }
+        val cardPack = game.gameCardPack.random()
+        player!!.sendMessage("${ChatColor.BOLD}정예 보상을 준비중입니다...")
+        object : BukkitRunnable() {
+            override fun run() {
+                hardHandleCardOperations(11, inventory, cardPack)
+                hardHandleCardOperations(13, inventory, cardPack)
+                hardHandleCardOperations(15, inventory, cardPack)
+                player!!.scoreboardTags.add("rewardChose")
+                game.gamePlayerStats[player!!]?.loadDeckToInventory()
+                player!!.openInventory(inventory)
+            }
+        }.runTaskLater(ProjectTurn.instance, 60L)
+    }
+
+    private fun normalHandleCardOperations(inventorySlot: Int, inventory: Inventory, cardPack: CardPack) {
         val cardPackList = cardPack.cardList
         val cardShuffledList = cardPackList.shuffled()
         val cardList: MutableList<Card> = cardShuffledList.filter { it.rarity == RarityType.Common || it.rarity == RarityType.Uncommon || it.rarity == RarityType.Rare }
+            .toMutableList()
+        cardList.shuffle()
+        val card = cardList.firstOrNull()
+        inventory.setItem(inventorySlot, card?.toItem())
+    }
+
+    private fun hardHandleCardOperations(inventorySlot: Int, inventory: Inventory, cardPack: CardPack) {
+        val cardPackList = cardPack.cardList
+        val cardShuffledList = cardPackList.shuffled()
+        val cardList: MutableList<Card> = cardShuffledList.filter { it.rarity == RarityType.Legend }
             .toMutableList()
         cardList.shuffle()
         val card = cardList.firstOrNull()

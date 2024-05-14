@@ -8,7 +8,7 @@ class Pig {
         val game = Info().getGame() ?: return
 
 
-        val target = game.players.random()
+        val target = game.playerRandomTarget()
 
         game.gamePlayerStats[target]?.damage(2, enemy.enemy)
     }

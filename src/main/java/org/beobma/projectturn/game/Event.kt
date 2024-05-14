@@ -192,7 +192,9 @@ class Event : Listener {
         if (player.scoreboardTags.contains("mapChose")) {
             object : BukkitRunnable() {
                 override fun run() {
-                    player.openInventory(game.mapInventory!!)
+                    if (player.scoreboardTags.contains("mapChose")) {
+                        player.openInventory(game.mapInventory!!)
+                    }
                 }
             }.runTaskLater(ProjectTurn.instance, 10L)
         }
@@ -214,7 +216,9 @@ class Event : Listener {
         else if (player.scoreboardTags.contains("event")) {
             object : BukkitRunnable() {
                 override fun run() {
-                    player.openInventory(game.eventInventory!!)
+                    if (player.scoreboardTags.contains("event")) {
+                        player.openInventory(game.eventInventory!!)
+                    }
                 }
             }.runTaskLater(ProjectTurn.instance, 10L)
         }

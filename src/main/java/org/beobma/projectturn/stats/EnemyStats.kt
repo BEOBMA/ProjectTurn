@@ -27,9 +27,10 @@ class EnemyStats(
 
     fun set(entity: Entity) {
         val game = Info().getGame() ?: return
+        val enemyStats = this
 
         entity.apply {
-            this.customName = "${ChatColor.RED}${ChatColor.BOLD}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${ChatColor.BOLD}${game.gameEnemyStats[entity]?.defense}"
+            this.customName = "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
             this.isCustomNameVisible = true
         }
     }
@@ -113,17 +114,20 @@ class EnemyStats(
     fun heal(damage: Int, entity: Entity) {
         val game = Info().getGame() ?: return
         val healEvent = HealEvent(entity, enemy, damage)
+        var finalDamage = damage
         ProjectTurn.instance.server.pluginManager.callEvent(healEvent)
         if (healEvent.isCancelled) {
             return
         }
-        health += damage
+        finalDamage += healEvent.damage
+        health += finalDamage
         if (health > maxHealh) {
             health = maxHealh
         }
+        val enemyStats = this
 
         this.enemy.apply {
-            customName = "${ChatColor.RED}${ChatColor.BOLD}${game.gameEnemyStats[this]?.health}"
+            customName = "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
         }
     }
 
@@ -139,6 +143,8 @@ class EnemyStats(
             return
         }
 
+        game.countTimer.find { it.entity == this.enemy }?.countEnd()
+
         game.gameTurnOrder.remove(this.enemy)
         game.gameEnemy.remove(this.enemy)
         game.gameEnemyStats.remove(this.enemy)
@@ -150,6 +156,18 @@ class EnemyStats(
         }
         else {
             GameManager().enemyLocationReTake()
+        }
+
+        try {
+            val clazz = Class.forName("org.beobma.projectturn.enemy.${this.id}")
+            val instance = clazz.getDeclaredConstructor().newInstance()
+            val method = clazz.getDeclaredMethod("dead", EnemyStats::class.java)
+
+            method.invoke(instance, this)
+        } catch (e: ClassNotFoundException) {
+            println("Class not found: $e")
+        } catch (e: Exception) {
+            println("대상에게 해당 함수가 존재하지 않음: $e")
         }
     }
 

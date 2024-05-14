@@ -10,6 +10,7 @@ import org.beobma.projectturn.stats.EnemyStats
 import org.beobma.projectturn.stats.PlayerStats
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
+import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -31,7 +32,8 @@ data class Game(
     var nextTileType: TileType = TileType.Start,
     var mapInventory: Inventory? = null,
     var eventInventory: Inventory? = null,
-    var drawCardInt: Int = 0
+    var drawCardInt: Int = 0,
+    val countTimer: MutableList<TurnCount> = mutableListOf()
 ) {
     fun start() {
         Info.game = this
@@ -92,6 +94,7 @@ data class Game(
         players.forEach { player ->
             player.isGlowing = false
             player.inventory.clear()
+            player.gameMode = GameMode.ADVENTURE
             player.scoreboard.getObjective("mana")!!.getScore(player.name).score = 0
             player.scoreboard.getObjective("maxMana")!!.getScore(player.name).score = 0
             player.scoreboard.getObjective("defense")!!.getScore(player.name).score = 0
@@ -108,6 +111,15 @@ data class Game(
         Info.game = null
         Info.starting = false
         Info.gaming = false
+    }
+
+    fun playerRandomTarget(): Player {
+        var player: Player
+        do {
+            player = this.players.random()
+        } while (player.scoreboardTags.contains("death_Player"))
+
+        return player
     }
 }
 

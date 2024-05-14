@@ -12,6 +12,7 @@ import org.bukkit.ChatColor
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import kotlin.math.roundToInt
 
 class Utill {
     companion object {
@@ -49,6 +50,11 @@ class Utill {
 
         fun Entity.isEnemy(): Boolean {
             return this !is Player
+        }
+
+        fun Int.calculatePercentage(percentage: Double): Int {
+            val result = this * percentage / 100.0
+            return result.roundToInt()
         }
     }
 

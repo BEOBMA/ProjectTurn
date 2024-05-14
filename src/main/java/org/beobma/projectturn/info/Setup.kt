@@ -148,7 +148,9 @@ class Setup {
                 Card("방어 태세", listOf("${ChatColor.GRAY}30의 방어력을 얻습니다."), RarityType.Common, 3),
                 Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Common, 1),
                 Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Common, 1),
-                Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Common, 1)
+                Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Common, 1),
+                Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Legend, 1),
+                Card("모두의 방패", listOf("${ChatColor.GRAY}아군 모두가 5의 방어력을 얻습니다."), RarityType.Legend, 1),
             )
         )
 

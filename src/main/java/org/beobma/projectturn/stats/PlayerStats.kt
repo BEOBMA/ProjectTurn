@@ -5,15 +5,13 @@ import org.beobma.projectturn.card.Card
 import org.beobma.projectturn.event.CardUsingEvent
 import org.beobma.projectturn.event.DamageEvent
 import org.beobma.projectturn.event.DeathEvent
+import org.beobma.projectturn.event.HealEvent
 import org.beobma.projectturn.game.GameManager
 import org.beobma.projectturn.info.Info
 import org.beobma.projectturn.localization.Localization
 import org.beobma.projectturn.text.TextManager
 import org.beobma.projectturn.util.Utill.Companion.toCard
-import org.bukkit.Bukkit
-import org.bukkit.ChatColor
-import org.bukkit.Material
-import org.bukkit.Sound
+import org.bukkit.*
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
@@ -35,6 +33,10 @@ data class PlayerStats(
     var inventoryDeck: MutableList<Card> = mutableListOf(),
     var backInventory: Inventory? = null
 ) {
+    fun isDead(): Boolean {
+        return player.scoreboardTags.contains("death_Player")
+    }
+
     /**
      * 마나를 추가합니다.
      * @param p1 추가할 마나
@@ -150,8 +152,19 @@ data class PlayerStats(
      * 체력을 회복합니다.
      * @param damage 회복할 체력
      */
-    fun heal(damage: Int) {
-        health += damage
+    fun heal(damage: Int, entity: Entity) {
+        val healEvent = HealEvent(entity, player, damage)
+        var finalDamage = damage
+        ProjectTurn.instance.server.pluginManager.callEvent(healEvent)
+        if (healEvent.isCancelled) {
+            return
+        }
+        finalDamage += healEvent.damage
+        health += finalDamage
+
+        if (health > maxHealth) {
+            health = maxHealth
+        }
     }
 
     /**
@@ -168,6 +181,8 @@ data class PlayerStats(
 
         this.player.scoreboardTags.add("death_Player")
         this.health = 0.0
+        player.gameMode = GameMode.SPECTATOR
+        player.teleport(Location(player.world,0.5, -30.0, 0.5))
 
         var int = 0
         game.players.forEach {
@@ -182,6 +197,19 @@ data class PlayerStats(
             GameManager().playerLocationReTake()
             game.gameTurnOrder.remove(player)
         }
+    }
+
+    /**
+     * 부활 처리합니다.
+     */
+    fun resurrection() {
+        val game = Info().getGame() ?: return
+
+        this.player.scoreboardTags.remove("death_Player")
+        player.gameMode = GameMode.ADVENTURE
+
+        player.health = this.health
+        GameManager().playerLocationReTake()
     }
 
     fun useCard(item: ItemStack, card: Card) {
