@@ -66,6 +66,13 @@ class EnemyStats(
 
         val playerBasicPower = game.gamePlayerStats[player]?.basicPower ?: 0
         finalDamage += playerBasicPower
+        val damageEvent = DamageEvent(enemy, player, finalDamage)
+        ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
+        if (damageEvent.isCancelled) {
+            return
+        }
+
+        finalDamage = damageEvent.damage
 
         when {
             finalDamage > defense -> {
@@ -91,13 +98,7 @@ class EnemyStats(
             return
         }
 
-        val damageEvent = DamageEvent(enemy, player, finalDamage)
-        ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
-        if (damageEvent.isCancelled) {
-            return
-        }
-
-        finalDamage = damageEvent.damage
+        
 
         health -= finalDamage
         if (health <= 0) {
