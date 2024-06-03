@@ -119,7 +119,7 @@ class EnemyStats(
         if (healEvent.isCancelled) {
             return
         }
-        finalDamage += healEvent.damage
+        finalDamage = healEvent.damage
         health += finalDamage
         if (health > maxHealh) {
             health = maxHealh
