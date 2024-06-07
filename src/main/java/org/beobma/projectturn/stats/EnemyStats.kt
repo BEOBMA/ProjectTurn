@@ -168,7 +168,7 @@ class EnemyStats(
         } catch (e: ClassNotFoundException) {
             println("Class not found: $e")
         } catch (e: Exception) {
-            println("대상에게 해당 함수가 존재하지 않음: $e")
+            println("대상에게 해당 패시브가 존재하지 않음 (오류 아님): $e")
         }
     }
 
