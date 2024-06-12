@@ -51,11 +51,3 @@ processResources {
 kotlin {
     jvmToolchain(17)
 }
-
-shadowJar{
-    archivesBaseName = 'ProjectTurn'
-    destinationDirectory = file("C:\\Users\\ssdss\\OneDrive\\바탕 화면\\게임\\마인크래프트\\ProjectTurn\\plugins")
-    manifest {
-        attributes 'Main-Class': 'org.beobma.ProjectTurn.ProjectTurn'
-    }
-}
