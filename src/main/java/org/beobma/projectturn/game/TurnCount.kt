@@ -1,12 +1,12 @@
+@file:Suppress("DEPRECATION")
+
 package org.beobma.projectturn.game
 
 import org.beobma.projectturn.info.Info
-import org.beobma.projectturn.stats.EnemyStats
 import org.beobma.projectturn.text.TextManager
 import org.bukkit.ChatColor
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
-import kotlin.enums.enumEntries
 
 data class TurnCount(
     val entity: Entity,
@@ -18,12 +18,7 @@ data class TurnCount(
         val game = Info().getGame() ?: return
 
         game.countTimer.add(this)
-        if (entity is Player) {
-            entity.sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 ${turnTime}턴 동안 적용됩니다.")
-
-        } else {
-            TextManager().gameNotification("${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 ${turnTime}턴 동안 적용됩니다.")
-        }
+        sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 ${turnTime}턴 동안 적용됩니다.", "${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 ${turnTime}턴 동안 적용됩니다.")
     }
 
     fun countDown() {
@@ -40,34 +35,33 @@ data class TurnCount(
             return
         }
 
-        if (entity is Player) {
-            entity.sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 ${turnTime}턴 후 제거됩니다.")
-
-        } else {
-            TextManager().gameNotification("${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 ${turnTime}턴 후 제거됩니다.")
-        }
+        sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 ${turnTime}턴 후 제거됩니다.", "${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 ${turnTime}턴 후 제거됩니다.")
     }
 
     fun countEnd() {
         val game = Info().getGame() ?: return
 
-        if (entity.isDead) {
-            game.countTimer.remove(this)
-            return
-        } else {
-            if (entity is Player) {
-                entity.sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 제거되었습니다.")
-
-            } else {
-                TextManager().gameNotification("${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 제거되었습니다.")
-            }
+        if (!entity.isDead) {
+            sendMessage("${ChatColor.BOLD}${ChatColor.GREEN}$effectText 효과가 제거되었습니다.", "${ChatColor.BOLD}${ChatColor.RED}${game.gameEnemyStats[entity]?.name}의 $effectText 효과가 제거되었습니다.")
+            applyEndEffect(game)
         }
 
+        game.countTimer.remove(this)
+    }
+
+    private fun sendMessage(playerMessage: String, enemyMessage: String) {
+        if (entity is Player) {
+            entity.sendMessage(playerMessage)
+        } else {
+            TextManager().gameNotification(enemyMessage)
+        }
+    }
+
+    private fun applyEndEffect(game: Game) {
         when (this.tagString) {
             "WolfDeadSpeedUpTag" -> {
-                game.gameEnemyStats[entity]!!.relativeSpeed -= 1
+                game.gameEnemyStats[entity]?.relativeSpeed?.minus(1)
             }
         }
-        game.countTimer.remove(this)
     }
 }

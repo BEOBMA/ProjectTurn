@@ -1,6 +1,8 @@
 package org.beobma.projectturn.stats
 
 import org.beobma.projectturn.ProjectTurn
+import org.beobma.projectturn.game.StatusEffect
+import org.beobma.projectturn.game.StatusEffectType
 import org.beobma.projectturn.card.Card
 import org.beobma.projectturn.event.DamageEvent
 import org.beobma.projectturn.event.DeathEvent
@@ -22,15 +24,32 @@ class EnemyStats(
     var relativeSpeed: Int,
     var usingCardList: MutableList<Card> = mutableListOf(),
     var id: String,
-    var name: String
+    var name: String,
+    val statusEffect: MutableList<StatusEffect> = mutableListOf()
 ) {
+
+    fun addBurn(p1: Int, caster: Player) {
+        statusEffect.add(StatusEffect(StatusEffectType.Burn, p1, 1, this.enemy, caster))
+    }
+
+    fun getBurn(): Int {
+        var i = 0
+
+        statusEffect.forEach { status ->
+            if (status.type == StatusEffectType.Burn) {
+                i++
+            }
+        }
+        return i
+    }
 
     fun set(entity: Entity) {
         val game = Info().getGame() ?: return
         val enemyStats = this
 
         entity.apply {
-            this.customName = "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
+            this.customName =
+                "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
             this.isCustomNameVisible = true
         }
     }
@@ -56,23 +75,17 @@ class EnemyStats(
             println("An error occurred: $e")
         }
     }
+
     /**
      * 적에게 피해를 입힙니다.
      * @param damage 입힐 피해
      */
-    fun damage(damage: Int, player: Player) {
+    fun damage(damage: Int, player: Player, message: Boolean = true) {
         val game = Info().getGame() ?: return
         var finalDamage = damage
 
         val playerBasicPower = game.gamePlayerStats[player]?.basicPower ?: 0
         finalDamage += playerBasicPower
-        val damageEvent = DamageEvent(enemy, player, finalDamage)
-        ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
-        if (damageEvent.isCancelled) {
-            return
-        }
-
-        finalDamage = damageEvent.damage
 
         when {
             finalDamage > defense -> {
@@ -82,11 +95,13 @@ class EnemyStats(
                 finalDamage -= defense
                 defense = 0
             }
+
             finalDamage == defense -> {
                 Info.world.playSound(this.enemy.location, Sound.ITEM_SHIELD_BLOCK, 1.0F, 1.0F)
                 finalDamage = 0
                 defense = 0
             }
+
             else -> {
                 Info.world.playSound(this.enemy.location, Sound.ITEM_SHIELD_BLOCK, 1.0F, 1.0F)
                 defense -= finalDamage
@@ -98,7 +113,13 @@ class EnemyStats(
             return
         }
 
-        
+        val damageEvent = DamageEvent(enemy, player, finalDamage, message)
+        ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
+        if (damageEvent.isCancelled) {
+            return
+        }
+
+        finalDamage = damageEvent.damage
 
         health -= finalDamage
         if (health <= 0) {
@@ -120,7 +141,7 @@ class EnemyStats(
         if (healEvent.isCancelled) {
             return
         }
-        finalDamage = healEvent.damage
+        finalDamage += healEvent.damage
         health += finalDamage
         if (health > maxHealh) {
             health = maxHealh
@@ -128,7 +149,8 @@ class EnemyStats(
         val enemyStats = this
 
         this.enemy.apply {
-            customName = "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
+            customName =
+                "${ChatColor.BOLD}${enemyStats.name} | ${ChatColor.RED}${game.gameEnemyStats[entity]?.health} | ${ChatColor.WHITE}${game.gameEnemyStats[entity]?.defense}"
         }
     }
 
@@ -138,6 +160,9 @@ class EnemyStats(
     fun death() {
         val game = Info().getGame() ?: return
 
+        if (this.enemy.isDead) {
+            return
+        }
         val deathEvent = DeathEvent(enemy)
         ProjectTurn.instance.server.pluginManager.callEvent(deathEvent)
         if (deathEvent.isCancelled) {
@@ -154,8 +179,7 @@ class EnemyStats(
 
         if (game.gameEnemy.size < 1) {
             GameManager().battleEnd()
-        }
-        else {
+        } else {
             GameManager().enemyLocationReTake()
         }
 
@@ -168,7 +192,7 @@ class EnemyStats(
         } catch (e: ClassNotFoundException) {
             println("Class not found: $e")
         } catch (e: Exception) {
-            println("대상에게 해당 패시브가 존재하지 않음 (오류 아님): $e")
+            println("대상에게 해당 함수가 존재하지 않음: $e")
         }
     }
 

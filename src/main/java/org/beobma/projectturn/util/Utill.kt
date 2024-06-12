@@ -7,10 +7,14 @@ import org.beobma.projectturn.card.Card
 import org.beobma.projectturn.card.RarityType
 import org.beobma.projectturn.info.Info
 import org.beobma.projectturn.info.Setup
+import org.beobma.projectturn.relics.Relics
+import org.beobma.projectturn.stats.EnemyStats
 import org.beobma.projectturn.util.Utill.Companion.toCard
 import org.bukkit.ChatColor
+import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import kotlin.math.roundToInt
 
@@ -38,6 +42,24 @@ class Utill {
                 }
             }
             return Card("오류 카드", listOf("이 카드는 존재할 수 없는 카드입니다."), RarityType.Common, 999)
+        }
+        fun ItemStack.toRelics(): Relics {
+            val name = this.itemMeta.displayName
+            val lore = this.itemMeta.lore as List<String>
+
+            return Relics(name, lore)
+        }
+        fun EnemyStats.toItem(): ItemStack {
+            val name = this.name
+
+            val item = ItemStack(Material.SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE, 1).apply {
+                itemMeta = itemMeta.apply {
+                    setDisplayName("${ChatColor.BOLD}${ChatColor.GRAY}${name}")
+                    addItemFlags(ItemFlag.HIDE_ITEM_SPECIFICS)
+                }
+            }
+
+            return item
         }
 
         fun Player.isTurn(): Boolean {

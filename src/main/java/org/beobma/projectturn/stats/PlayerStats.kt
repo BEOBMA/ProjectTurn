@@ -1,14 +1,14 @@
 package org.beobma.projectturn.stats
 
 import org.beobma.projectturn.ProjectTurn
+import org.beobma.projectturn.game.StatusEffect
+import org.beobma.projectturn.game.StatusEffectType
 import org.beobma.projectturn.card.Card
-import org.beobma.projectturn.event.CardUsingEvent
-import org.beobma.projectturn.event.DamageEvent
-import org.beobma.projectturn.event.DeathEvent
-import org.beobma.projectturn.event.HealEvent
+import org.beobma.projectturn.event.*
 import org.beobma.projectturn.game.GameManager
 import org.beobma.projectturn.info.Info
 import org.beobma.projectturn.localization.Localization
+import org.beobma.projectturn.relics.Relics
 import org.beobma.projectturn.text.TextManager
 import org.beobma.projectturn.util.Utill.Companion.toCard
 import org.bukkit.*
@@ -16,7 +16,6 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.PlayerInventory
 
 @Suppress("DEPRECATION")
 data class PlayerStats(
@@ -27,106 +26,134 @@ data class PlayerStats(
     var basicPower: Int,
     var relativeSpeed: Int,
     var deck: MutableList<Card> = mutableListOf(),
-    val cemetry: MutableList<Card> = mutableListOf(),
+    var cemetry: MutableList<Card> = mutableListOf(),
     val except: MutableList<Card> = mutableListOf(),
     var maxMana: Int = 3,
     var inventoryDeck: MutableList<Card> = mutableListOf(),
-    var backInventory: Inventory? = null
+    var backInventory: Inventory? = null,
+    val relics: MutableList<Relics> = mutableListOf(),
+    var statusEffect: MutableList<StatusEffect> = mutableListOf(),
+    val battleEndFunctionList: MutableList<() -> Unit> = mutableListOf()
 ) {
+
+    fun sameCardDisappears(originCard: Card) {
+        val game = Info().getGame() ?: return
+        val cardList = mutableListOf<Card>()
+        game.gamePlayerStats[player]?.deck?.forEach {
+            if (it == originCard) {
+                game.gamePlayerStats[player]?.except?.add(it)
+            } else {
+                cardList.add(it)
+            }
+        }
+        game.gamePlayerStats[player]?.deck = cardList
+
+        val cardList1 = mutableListOf<Card>()
+        game.gamePlayerStats[player]?.cemetry?.forEach {
+            if (it == originCard) {
+                game.gamePlayerStats[player]?.except?.add(it)
+            } else {
+                cardList1.add(it)
+            }
+        }
+        game.gamePlayerStats[player]?.cemetry = cardList1
+
+        val removeCards = player.inventory.filter { it.toCard() == originCard }
+        player.inventory.removeAll { it.toCard() == originCard }
+
+        removeCards.forEach {
+            game.gamePlayerStats[player]?.except?.add(it.toCard())
+        }
+    }
+
     fun isDead(): Boolean {
         return player.scoreboardTags.contains("death_Player")
     }
 
-    /**
-     * 마나를 추가합니다.
-     * @param p1 추가할 마나
-     */
-    fun addMana(p1: Int) {
-        if (getMana() + p1 >= maxMana) {
-            setMana(maxMana)
-            return
-        }
-        player.scoreboard.getObjective("mana")!!.getScore(player.name).score += p1
+    fun addMachineNesting(p1: Int) {
+        this.player.scoreboard.getObjective("MachineNesting")!!.getScore(this.player.name).score += p1
+        this.player.sendMessage("${ChatColor.BOLD}현재 기계 중첩: ${getMachineNesting()}")
     }
 
-    /**
-     * 마나를 반환합니다.
-     */
+    fun getMachineNesting(): Int {
+        return this.player.scoreboard.getObjective("MachineNesting")!!.getScore(this.player.name).score
+    }
+
+    fun removeMachineNesting(p1: Int) {
+        this.player.scoreboard.getObjective("MachineNesting")!!.getScore(this.player.name).score -= p1
+    }
+
+    fun resetMachineNesting() {
+        this.player.scoreboard.getObjective("MachineNesting")!!.getScore(this.player.name).score = 0
+    }
+
+    fun addFireShield(p1: Int, caster: Entity) {
+        statusEffect.add(StatusEffect(StatusEffectType.FireShield, p1, 1, this.player, caster))
+    }
+
+    fun getFireShield(): Int {
+        return statusEffect.count { it.type == StatusEffectType.FireShield }
+    }
+
+    fun addBurn(p1: Int, caster: Entity) {
+        statusEffect.add(StatusEffect(StatusEffectType.Burn, p1, 1, this.player, caster))
+    }
+
+    fun getBurn(): Int {
+        return statusEffect.count { it.type == StatusEffectType.Burn }
+    }
+
+    fun addMana(p1: Int) {
+        val newMana = (getMana() + p1).coerceAtMost(maxMana)
+        setMana(newMana)
+    }
+
     fun getMana(): Int {
         return player.scoreboard.getObjective("mana")!!.getScore(player.name).score
     }
 
-    /**
-     * 마나를 설정합니다. 최대 마나를 무시합니다.
-     * @param p1 설정할 마나
-     */
     fun setMana(p1: Int) {
         player.scoreboard.getObjective("mana")!!.getScore(player.name).score = p1
     }
 
-    /**
-     * 마나를 제거합니다.
-     * @param p1 제거할 마나
-     */
     fun removeMana(p1: Int) {
-        player.scoreboard.getObjective("mana")!!.getScore(player.name).score -= p1
+        setMana(getMana() - p1)
     }
 
-    /**
-     * 최대 마나를 추가합니다.
-     * @param i 추가할 최대 마나
-     */
     fun addMaxMana(i: Int) {
         maxMana += i
         player.scoreboard.getObjective("maxMana")!!.getScore(player.name).score = maxMana
     }
 
-    /**
-     * 플레이어가 피해를 입습니다.
-     * @param damage 입은 피해
-     * @param enemy 피해를 입힌 엔티티
-     */
     fun damage(damage: Int, enemy: Entity) {
         val game = Info().getGame() ?: return
-        var finalDamage = damage
-
         val enemyBasicPower = game.gameEnemyStats[enemy]?.basicPower ?: 0
-        finalDamage += enemyBasicPower
+        var finalDamage = damage + enemyBasicPower
 
-        when {
+        finalDamage = when {
             finalDamage > defense -> {
-                if (defense != 0) {
-                    Info.world.playSound(player.location, Sound.ITEM_SHIELD_BREAK, 1.0F, 1.0F)
-                }
-                finalDamage -= defense
-                defense = 0
-                player.scoreboard.getObjective("defense")!!.getScore(player.name).score = 0
+                if (defense != 0) Info.world.playSound(player.location, Sound.ITEM_SHIELD_BREAK, 1.0F, 1.0F)
+                finalDamage - defense
             }
-
             finalDamage == defense -> {
                 Info.world.playSound(player.location, Sound.ITEM_SHIELD_BLOCK, 1.0F, 1.0F)
-                finalDamage = 0
-                defense = 0
-                player.scoreboard.getObjective("defense")!!.getScore(player.name).score = 0
+                0
             }
-
             else -> {
                 Info.world.playSound(player.location, Sound.ITEM_SHIELD_BLOCK, 1.0F, 1.0F)
                 defense -= finalDamage
-                player.scoreboard.getObjective("defense")!!.getScore(player.name).score -= finalDamage
-                finalDamage = 0
+                0
             }
         }
 
-        if (finalDamage <= 0) {
-            return
-        }
+        defense = 0.coerceAtLeast(defense - finalDamage)
+        player.scoreboard.getObjective("defense")!!.getScore(player.name).score = defense
+
+        if (finalDamage <= 0) return
 
         val damageEvent = DamageEvent(player, enemy, finalDamage)
         ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
-        if (damageEvent.isCancelled) {
-            return
-        }
+        if (damageEvent.isCancelled) return
 
         health -= finalDamage
         if (health <= 0) {
@@ -137,61 +164,33 @@ data class PlayerStats(
         }
     }
 
-
-    /**
-     * 방어력을 얻습니다.
-     * @param damage 방어력
-     */
     fun addDefense(damage: Int) {
         defense += damage
-
         player.scoreboard.getObjective("defense")!!.getScore(player.name).score += damage
     }
 
-    /**
-     * 체력을 회복합니다.
-     * @param damage 회복할 체력
-     */
     fun heal(damage: Int, entity: Entity) {
         val healEvent = HealEvent(entity, player, damage)
-        var finalDamage = damage
         ProjectTurn.instance.server.pluginManager.callEvent(healEvent)
-        if (healEvent.isCancelled) {
-            return
-        }
-        finalDamage += healEvent.damage
-        health += finalDamage
+        if (healEvent.isCancelled) return
 
-        if (health > maxHealth) {
-            health = maxHealth
-        }
+        val finalDamage = healEvent.damage + damage
+        health = (health + finalDamage).coerceAtMost(maxHealth)
     }
 
-    /**
-     * 사망 처리합니다.
-     */
     fun death() {
         val game = Info().getGame() ?: return
 
         val deathEvent = DeathEvent(player)
         ProjectTurn.instance.server.pluginManager.callEvent(deathEvent)
-        if (deathEvent.isCancelled) {
-            return
-        }
+        if (deathEvent.isCancelled) return
 
-        this.player.scoreboardTags.add("death_Player")
-        this.health = 0.0
+        player.scoreboardTags.add("death_Player")
+        health = 0.0
         player.gameMode = GameMode.SPECTATOR
-        player.teleport(Location(player.world,0.5, -30.0, 0.5))
+        player.teleport(Location(player.world, 0.5, -30.0, 0.5))
 
-        var int = 0
-        game.players.forEach {
-            if (it.scoreboardTags.contains("death_Player")) {
-                int++
-            }
-        }
-
-        if (int == game.players.size) {
+        if (game.players.all { it.scoreboardTags.contains("death_Player") }) {
             GameManager().gameOver()
         } else {
             GameManager().playerLocationReTake()
@@ -199,218 +198,186 @@ data class PlayerStats(
         }
     }
 
-    /**
-     * 부활 처리합니다.
-     */
     fun resurrection() {
         val game = Info().getGame() ?: return
 
-        this.player.scoreboardTags.remove("death_Player")
+        player.scoreboardTags.remove("death_Player")
         player.gameMode = GameMode.ADVENTURE
-
         player.health = this.health
         GameManager().playerLocationReTake()
     }
 
-    fun useCard(item: ItemStack, card: Card) {
+    fun useCard(item: ItemStack, card: Card, cardTypeBoolean: Boolean = true) {
         val game = Info().getGame() ?: return
 
         ProjectTurn.instance.server.pluginManager.callEvent(
-            CardUsingEvent(
-                player, card, item
-            )
+            CardUsingEvent(player, card, item)
         )
 
-        player.inventory.remove(item)
+        if (cardTypeBoolean) {
+            player.inventory.remove(item)
+            game.gamePlayerStats[player]?.cemetry?.add(card)
+        }
+
         game.gamePlayerStats[player]?.removeMana(card.cost)
     }
 
     fun cardDraw(n: Int) {
         repeat(n) {
-            if (isHotbarFull(player)) {
-                return
-            }
+            if (isHotbarFull(player)) return
 
-            val drawCard = deck.removeFirstOrNull()
-            if (drawCard == null) {
+            val drawCard = deck.removeFirstOrNull() ?: run {
                 cemetryResetDeck()
-                if (deck.isEmpty()) {
-                    return
-                }
-                val newDrawCard = deck.removeFirstOrNull() ?: return
-                val card = newDrawCard.toItem()
-                Info().getGame()?.drawCardInt = Info().getGame()!!.drawCardInt + 1
-                card.apply {
-                    itemMeta = itemMeta.apply {
-                        setCustomModelData(Info().getGame()?.drawCardInt)
-                    }
-                }
-                player.inventory.addItem(card)
+                deck.removeFirstOrNull()
+            } ?: return
 
-                player.sendMessage("${ChatColor.GRAY}${TextManager().boldText(newDrawCard.name)}${ChatColor.GRAY}을 뽑았습니다.")
-            } else {
-                val item = drawCard.toItem()
-                Info().getGame()?.drawCardInt = Info().getGame()!!.drawCardInt + 1
-                item.apply {
-                    itemMeta = itemMeta.apply {
-                        setCustomModelData(Info().getGame()?.drawCardInt)
-                    }
+            val item = drawCard.toItem().apply {
+                itemMeta = itemMeta.apply {
+                    setCustomModelData((Info().getGame()?.drawCardInt ?: 0) + 1)
                 }
-                player.inventory.addItem(item)
             }
+
+            player.inventory.addItem(item)
+            player.sendMessage("${ChatColor.GRAY}${TextManager().boldText(drawCard.name)}${ChatColor.GRAY}을 뽑았습니다.")
         }
     }
 
-    fun addCard(p1: Card) {
-        if (isHotbarFull(player)) {
-            return
-        }
+    fun addCard(card: Card) {
+        if (isHotbarFull(player)) return
 
-        val item = p1.toItem()
-        Info().getGame()?.drawCardInt = Info().getGame()!!.drawCardInt + 1
-        item.apply {
+        val item = card.toItem().apply {
             itemMeta = itemMeta.apply {
-                setCustomModelData(Info().getGame()?.drawCardInt)
+                setCustomModelData((Info().getGame()?.drawCardInt ?: 0) + 1)
             }
         }
-        player.inventory.addItem(item)
 
-        player.sendMessage("${ChatColor.GRAY}${TextManager().boldText(p1.name)}${ChatColor.GRAY}을 뽑았습니다.")
+        player.inventory.addItem(item)
+        player.sendMessage("${ChatColor.GRAY}${TextManager().boldText(card.name)}${ChatColor.GRAY}을 뽑았습니다.")
     }
 
-
-    fun deckShuppleShuffled() {
+    fun deckShuffle() {
         deck.shuffle()
     }
 
     fun throwCardAll() {
-        val items = getPlayerHotbarItems(player)
-
-        items.forEach {
-            throwCard(it)
-        }
+        getPlayerHotbarItems(player).forEach { throwCard(it) }
     }
 
     fun throwCard(card: ItemStack) {
-        val item = card.toCard()
-
-        cemetry.add(item)
+        cemetry.add(card.toCard())
         player.inventory.removeItem(card)
-        player.sendMessage("${ChatColor.BOLD}${item.name} 카드를 버렸습니다.")
+        player.sendMessage("${ChatColor.BOLD}${card.toCard().name} 카드를 버렸습니다.")
     }
 
     private fun getPlayerHotbarItems(player: Player): List<ItemStack> {
-        val items: MutableList<ItemStack> = mutableListOf()
-        for (i in 0..8) { // 0부터 8까지 반복
-            player.inventory.getItem(i)?.let { items.add(it) }
-        }
-        return items
-
+        return (0..8).mapNotNull { player.inventory.getItem(it) }
     }
 
-
     private fun isHotbarFull(player: Player): Boolean {
-        return (0..8).all { slot -> player.inventory.getItem(slot) != null && player.inventory.getItem(slot)!!.type.isAir.not() }
+        return (0..8).all { slot -> player.inventory.getItem(slot)?.type?.isAir == false }
     }
 
     fun cemetryResetDeck() {
-        val tempCemetry = ArrayList(cemetry)
-        tempCemetry.forEach {
-            cemetry.remove(it)
+        cemetry.forEach {
             deck.add(it)
         }
-        deckShuppleShuffled()
+        cemetry.clear()
+        deckShuffle()
     }
 
     fun exceptResetDeck() {
-        val tempCemetry = ArrayList(except)
-        tempCemetry.forEach {
-            cemetry.remove(it)
+        except.forEach {
             deck.add(it)
         }
-        deckShuppleShuffled()
+        except.clear()
+        deckShuffle()
     }
 
-
     fun loadDeckToInventory() {
-        val inventory = player.inventory
-        val game = Info().getGame() ?: return
-
         inventoryDeck = deck.toMutableList()
-        val inv = inventoryDeck
-        val startIndex = 9
         val nonHotbarSlots = 35
 
-        inv.take(nonHotbarSlots).forEachIndexed { index, card ->
-            inventory.setItem(startIndex + index, card.toItem())
-            inv.remove(card)
+        inventoryDeck.take(nonHotbarSlots).forEachIndexed { index, card ->
+            player.inventory.setItem(index + 9, card.toItem())
         }
 
-        if (27 < inv.size) {
-            inventory.setItem(8, Localization().nextPage)
+        if (inventoryDeck.size > 27) {
+            player.inventory.setItem(8, Localization().nextPage)
         }
     }
 
     fun deckCheckToInventory() {
-        val game = Info().getGame() ?: return
-        val inventory: Inventory = Bukkit.createInventory(null, 27, "현재 덱") // 3줄짜리 인벤토리
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "현재 덱 (순서 랜덤)")
 
+        inventoryDeck = deck.shuffled().toMutableList()
 
-        inventoryDeck = deck.toMutableList()
-        val inv = inventoryDeck
-        val startIndex = 0
-        val nonHotbarSlots = 17
-
-        inv.take(nonHotbarSlots).forEachIndexed { index, card ->
-            inventory.setItem(startIndex + index, card.toItem())
-            inv.remove(card)
+        inventoryDeck.take(18).forEachIndexed { index, card ->
+            inventory.setItem(index, card.toItem())
         }
 
-        if (18 < inventoryDeck.size) {
+        if (inventoryDeck.size > 18) {
             inventory.setItem(26, Localization().nextPageChest)
         }
+
         player.openInventory(inventory)
     }
 
-    fun cemetryCheckToInventory() {
-        val game = Info().getGame() ?: return
-        val inventory: Inventory = Bukkit.createInventory(null, 27, "묘지로 보내진 카드들") // 3줄짜리 인벤토리
-
+    fun cemeteryCheckToInventory() {
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "묘지로 보내진 카드들")
 
         inventoryDeck = cemetry.toMutableList()
-        val inv = inventoryDeck
-        val startIndex = 0
-        val nonHotbarSlots = 17
 
-        inv.take(nonHotbarSlots).forEachIndexed { index, card ->
-            inventory.setItem(startIndex + index, card.toItem())
-            inv.remove(card)
+        inventoryDeck.take(18).forEachIndexed { index, card ->
+            inventory.setItem(index, card.toItem())
         }
 
-        if (18 < inventoryDeck.size) {
+        if (inventoryDeck.size > 18) {
             inventory.setItem(26, Localization().nextPageChest)
         }
+
         player.openInventory(inventory)
     }
 
     fun exceptCheckToInventory() {
-        val game = Info().getGame() ?: return
-        val inventory: Inventory = Bukkit.createInventory(null, 27, "제외된 카드들") // 3줄짜리 인벤토리
-
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "제외된 카드들")
 
         inventoryDeck = except.toMutableList()
-        val inv = inventoryDeck
-        val startIndex = 0
-        val nonHotbarSlots = 17
 
-        inv.take(nonHotbarSlots).forEachIndexed { index, card ->
-            inventory.setItem(startIndex + index, card.toItem())
-            inv.remove(card)
+        inventoryDeck.take(18).forEachIndexed { index, card ->
+            inventory.setItem(index, card.toItem())
         }
 
-        if (18 < inventoryDeck.size) {
+        if (inventoryDeck.size > 18) {
             inventory.setItem(26, Localization().nextPageChest)
         }
+
+        player.openInventory(inventory)
+    }
+
+    fun relicsCheckToInventory() {
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "유물")
+
+        relics.take(18).forEachIndexed { index, relic ->
+            inventory.setItem(index, relic.toItem())
+        }
+
+        if (relics.size > 18) {
+            inventory.setItem(26, Localization().nextPageChest)
+        }
+
+        player.openInventory(inventory)
+    }
+
+    fun deckCheck(deck: MutableList<Card>) {
+        val inventory: Inventory = Bukkit.createInventory(null, 27, "카드 선택")
+
+        inventoryDeck = deck.shuffled().toMutableList()
+
+        inventoryDeck.take(18).forEachIndexed { index, card ->
+            inventory.setItem(index, card.toItem())
+        }
+
+        player.scoreboardTags.add("choiceCard")
         player.openInventory(inventory)
     }
 }

@@ -35,5 +35,5 @@ class Info {
 }
 
 enum class GameInfoType {
-    IsEvent, IsBattle, IsHardBattle, IsShop, IsNot
+    IsEvent, IsBattle, IsHardBattle, IsShop, IsRest, IsBoss, IsNot
 }

@@ -1,12 +1,12 @@
 package org.beobma.projectturn.event
 
-import org.apache.logging.log4j.message.Message
+import org.beobma.projectturn.game.StatusEffectType
 import org.bukkit.entity.Entity
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
 
-class DamageEvent(val victim: Entity,var attacker: Entity, var damage: Int, val message: Boolean = true) : Event(), Cancellable {
+class StatusEffectDamageEvent(val victim: Entity, var attacker: Entity, var type: StatusEffectType, var damage: Int) : Event(), Cancellable {
     private var isCancelled = false
 
     override fun isCancelled(): Boolean {

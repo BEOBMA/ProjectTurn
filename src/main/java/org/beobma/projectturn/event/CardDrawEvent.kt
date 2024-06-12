@@ -1,12 +1,14 @@
 package org.beobma.projectturn.event
 
-import org.apache.logging.log4j.message.Message
+import jdk.incubator.foreign.SymbolLookup
+import org.beobma.projectturn.card.Card
 import org.bukkit.entity.Entity
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
+import org.bukkit.inventory.ItemStack
 
-class DamageEvent(val victim: Entity,var attacker: Entity, var damage: Int, val message: Boolean = true) : Event(), Cancellable {
+class CardDrawEvent(val entity: Entity, val card: Card, val drawInt: Int, val isStartEvent: Boolean = false) : Event(), Cancellable {
     private var isCancelled = false
 
     override fun isCancelled(): Boolean {
