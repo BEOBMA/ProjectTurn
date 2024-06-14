@@ -28,6 +28,21 @@ class EnemyStats(
     val statusEffect: MutableList<StatusEffect> = mutableListOf()
 ) {
 
+    fun addTorsion(p1: Int, caster: Player) {
+        statusEffect.add(StatusEffect(StatusEffectType.Torsion, p1, 9999, this.enemy, caster))
+    }
+
+    fun getTorsion(): Int {
+        var int = 0
+
+        statusEffect.forEach {
+            if (it.type == StatusEffectType.Torsion) {
+                int += it.power
+            }
+        }
+        return int
+    }
+
     fun addBurn(p1: Int, caster: Player) {
         statusEffect.add(StatusEffect(StatusEffectType.Burn, p1, 1, this.enemy, caster))
     }
@@ -37,7 +52,7 @@ class EnemyStats(
 
         statusEffect.forEach { status ->
             if (status.type == StatusEffectType.Burn) {
-                i++
+                i += status.power
             }
         }
         return i

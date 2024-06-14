@@ -10,6 +10,7 @@ import org.beobma.projectturn.text.TextManager.Companion.manaText
 import org.beobma.projectturn.text.TextManager.Companion.powerUpText
 import org.beobma.projectturn.text.TextManager.Companion.remnantText
 import org.beobma.projectturn.text.TextManager.Companion.sameCardDisappearsText
+import org.beobma.projectturn.text.TextManager.Companion.torsionText
 
 class Dictionary {
     val dictionaryList: MutableMap<String, String> = mutableMapOf(
@@ -33,6 +34,8 @@ class Dictionary {
             "화염 방어막", "${fireShieldText()}: 피해를 받으면 공격자에게 수치 만큼의 ${burnText()}을 부여합니다. 다음 턴 시작시 제거됩니다."
         ), Pair(
             "기본 위력 증가", "${powerUpText()}: 적에게 가하는 피해가 수치만큼 증가합니다."
+        ), Pair(
+            "비틀림", "${torsionText()}: 어떤 경로로든 받는 피해가 수치만큼 증가합니다."
         )
     )
 }

@@ -17,6 +17,7 @@ import org.beobma.projectturn.text.TextManager.Companion.manaText
 import org.beobma.projectturn.text.TextManager.Companion.powerUpText
 import org.beobma.projectturn.text.TextManager.Companion.remnantText
 import org.beobma.projectturn.text.TextManager.Companion.sameCardDisappearsText
+import org.beobma.projectturn.text.TextManager.Companion.torsionText
 import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
@@ -243,7 +244,7 @@ class Setup {
                 ),
             )
         )
-        private val BirthOfTheUniverse = CardPack(
+        val BirthOfTheUniverse = CardPack(
             "우주의 탄생", listOf("다양한 효과를 가진 카드들의 집합입니다. 다른 일부 카드들을 지원하는 카드들이 대거 등장합니다."), mutableListOf(
                 Card(
                     "태양",
@@ -329,19 +330,19 @@ class Setup {
                 ),
                 Card(
                     "명왕성",
-                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 고르고 패에 넣는다."),
+                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 뽑는다."),
                     RarityType.Common,
                     1
                 ),
                 Card(
                     "명왕성",
-                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 고르고 패에 넣는다."),
+                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 뽑는다."),
                     RarityType.Common,
                     1
                 ),
                 Card(
                     "명왕성",
-                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 고르고 패에 넣는다."),
+                    listOf(extinctionText(), "${ChatColor.GRAY}바라보는 적에게 12의 피해를 입히고 덱에서 '명왕성' 카드 1장을 뽑는다."),
                     RarityType.Common,
                     1
                 ),
@@ -353,9 +354,15 @@ class Setup {
                 ),
                 Card(
                     "우주의 특이점",
-                    listOf(sameCardDisappearsText(), "${ChatColor.GRAY}'우주의 탄생' 카드 팩에 존재하는 카드의 위력이 영구적으로 1 증가합니다."),
+                    listOf(sameCardDisappearsText(), "${ChatColor.GRAY}영구적으로 ${powerUpText()} 1을 얻습니다."),
                     RarityType.Legend,
                     1
+                ),
+                Card(
+                    "블랙홀",
+                    listOf(sameCardDisappearsText(), "${ChatColor.GRAY}모든 적에게 ${torsionText()} 5를 부여합니다."),
+                    RarityType.Legend,
+                    5
                 ),
             )
         )
@@ -508,6 +515,7 @@ class Setup {
                 "명왕성" -> "Pluto"
                 "빅뱅" -> "BigBang"
                 "우주의 특이점" -> "CosmicSingularity"
+                "블랙홀" -> "BlackHole"
                 else -> it.name
             }
         }

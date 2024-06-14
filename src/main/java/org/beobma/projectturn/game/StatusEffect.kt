@@ -25,6 +25,9 @@ data class StatusEffect(
             }
             return
         }
+        if (type == StatusEffectType.Torsion) {
+            return
+        }
         if (power != 0) {
             val damageEvent = StatusEffectDamageEvent(victim, caster, type, power)
             ProjectTurn.instance.server.pluginManager.callEvent(damageEvent)
@@ -70,5 +73,5 @@ data class StatusEffect(
 }
 
 enum class StatusEffectType {
-    Burn, FireShield, AutoMachineNesting, AutoCardDraw, AutoManaDraw
+    Burn, FireShield, AutoMachineNesting, AutoCardDraw, AutoManaDraw, Torsion
 }

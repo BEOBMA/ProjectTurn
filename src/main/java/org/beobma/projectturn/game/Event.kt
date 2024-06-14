@@ -500,6 +500,18 @@ class Event : Listener {
                 }
             }
         }
+        else {
+            if (game.gamePlayerStats[victim]!!.statusEffect.isNotEmpty()) {
+                game.gamePlayerStats[victim]!!.statusEffect.forEach {
+                    if (it.type == StatusEffectType.Torsion) {
+                        val torsion = game.gameEnemyStats[victim]!!.getTorsion()
+
+                        event.damage += torsion
+
+                    }
+                }
+            }
+        }
     }
 
 

@@ -65,6 +65,10 @@ class TextManager {
             return "${ChatColor.GOLD}${ChatColor.BOLD}기본 위력 증가${ChatColor.RESET}${ChatColor.GRAY}"
         }
 
+        fun torsionText(): String {
+            return "${ChatColor.LIGHT_PURPLE}${ChatColor.BOLD}비틀림${ChatColor.RESET}${ChatColor.GRAY}"
+        }
+
         fun Player.targetingFailSound() {
             player!!.playSound(player!!.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1.0F, 0.5F)
         }

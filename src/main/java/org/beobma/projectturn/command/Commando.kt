@@ -3,11 +3,13 @@
 package org.beobma.projectturn.command
 
 import net.md_5.bungee.api.ChatColor
+import org.beobma.projectturn.card.Card
 import org.beobma.projectturn.game.Difficulty
 import org.beobma.projectturn.game.GameType
 import org.beobma.projectturn.info.GameInfoType
 import org.beobma.projectturn.info.Info
 import org.beobma.projectturn.info.Setup.Companion.DevelopersPowers
+import org.beobma.projectturn.info.Setup.Companion.cardAllList
 import org.beobma.projectturn.localization.Dictionary
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
@@ -88,20 +90,23 @@ class Commando : Listener, CommandExecutor, TabCompleter {
                     return true
                 }
 
-                "cheat" -> {
+                "getCard" -> {
+                    if (args.size < 2) {
+                        sender.sendMessage("${ChatColor.RED}${ChatColor.BOLD}[!] 필수 인수가 누락되었습니다.")
+                        return false
+                    }
                     val game = Info().getGame() ?: run {
                         return false
                     }
 
-                    if (sender !in game.players) {
-                        return false
-                    }
-                    if (Info().getGameInfo() != GameInfoType.IsBattle && Info().getGameInfo() != GameInfoType.IsHardBattle) {
-                        return false
-                    }
+                    val key = args.drop(1).joinToString(" ").trim()
 
-                    game.gamePlayerStats[sender]?.addCard(DevelopersPowers)
-                    return true
+                    val card = cardAllList.keys.find { it.name.trim() == key }
+                    if (card !is Card) {
+                        sender.sendMessage("${ChatColor.RED}${ChatColor.BOLD}[!] 해당 이름을 가진 카드가 존재하지 않습니다.")
+                        return false
+                    }
+                    game.gamePlayerStats[sender]?.addCard(card)
                 }
 
                 "info", "정보" -> {
